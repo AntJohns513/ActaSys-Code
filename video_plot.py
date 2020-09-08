@@ -63,13 +63,13 @@ simple_mask = cv2.fillPoly(simple_mask, [bound_list], 0)
 #Creates the mask to be added to images
 ret, simple_mask = cv2.threshold(simple_mask,1,255,cv2.THRESH_BINARY);
 
-'''
+
 cv2.namedWindow('Simple Mask')
 cv2.moveWindow('Simple Mask', 0, 0)
 cv2.imshow('Simple Mask', simple_mask)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
-'''
+
 
 mask_white_pixels = cv2.countNonZero(simple_mask)
 lidar_area = simple_mask.size - cv2.countNonZero(simple_mask)
