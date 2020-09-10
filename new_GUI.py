@@ -4,7 +4,7 @@ from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtWidgets import (QApplication, QFileDialog, QLabel,
 		QPushButton, QSizePolicy, QSlider, QStyle, QWidget)
 from PyQt5.QtWidgets import QMainWindow, QWidget, QPushButton, QAction, QInputDialog, QLineEdit
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QGroupBox
 from PyQt5.QtGui import QIcon, QPalette, QColor
 
 from pyqtgraph import PlotWidget, PlotWidget
@@ -12,6 +12,26 @@ import pyqtgraph as pg
 import cv2
 import sys
 import time
+import serial
+
+#PLOTS:
+#Power Consumption
+#Jet Velocity
+#Sound in decibels
+
+try:
+    ser = serial.Serial(
+        port='/dev/tty.usbserial-210244705470',
+        baudrate = 9600,
+        parity=serial.PARITY_ODD,
+        stopbits=serial.STOPBITS_TWO,
+        bytesize=serial.SEVENBITS
+        )
+    ser.flush()
+    arduino_connected = True
+except:
+    print("Arduino Not Connected")
+    arduino_connected = False
 
 def createButton(label, isOn, tied_func):
 	btn = QPushButton(label)
@@ -52,6 +72,9 @@ class MainWindow(QMainWindow):
 		super(MainWindow, self).__init__(*args, **kwargs)
 
 		self.setWindowTitle("Testing GUI")
+
+		self.weighted_freq_jump_ranges = {}
+		self.num_of_ranges = 0;
 
 		self.times = []
 		self.water_percent = []
@@ -102,15 +125,15 @@ class MainWindow(QMainWindow):
 		self.wave_measurement_label = createButton("Measurements for Primary Waveform", True, self.keepOn)
 
 		#Used for setting Wave Amplitude
-		self.wave_amplitude_label = createLabel("Wave Amplitude")
+		self.wave_amplitude_label = createLabel("Wave Amplitude: 0.46")
 		self.wave_amplitude_slider = createHorizontalSlider(0, 91, 46, self.setAmplitude)
 
 		#Used for setting Wave Frequency
-		self.wave_frequency_label = createLabel("Wave Frequency")
+		self.wave_frequency_label = createLabel("Wave Frequency: 500")
 		self.wave_frequency_slider = createHorizontalSlider(0, 999, 500, self.setFrequency)
 
 		#Used for setting Wave Symmetry
-		self.wave_symmetry_label = createLabel("Wave Symmetry (%)")
+		self.wave_symmetry_label = createLabel("Wave Symmetry (%): 50")
 		self.wave_symmetry_slider = createHorizontalSlider(0, 99, 50, self.setSymmetry)
 
 		self.wave_measurement_layout.addWidget(self.wave_measurement_label)
@@ -132,16 +155,16 @@ class MainWindow(QMainWindow):
 
 		self.pulse_mod = createButton("Pulse Modulation", False, self.enablePulseModulation)
 
-		self.pulse_mod_duty_cycle_label = createLabel("Modulation Wave Duty Cycle")
+		self.pulse_mod_duty_cycle_label = createLabel("Duty Cycle (%): 50")
 		self.pulse_mod_duty_cycle_slider = createHorizontalSlider(0, 99, 50, self.setModDutyCycle)
 
 
 		#Used for setting Wave Frequency
-		self.pulse_mod_frequency_label = createLabel("Modulation Wave Frequency")
+		self.pulse_mod_frequency_label = createLabel("Frequency: 50")
 		self.pulse_mod_frequency_slider = createHorizontalSlider(0, 99, 50, self.setModFrequency)
 
 		#Used for setting Wave Symmetry
-		self.pulse_mod_rise_time_label = createLabel("Modulation Wave Rise Time (%)")
+		self.pulse_mod_rise_time_label = createLabel("Rise Time (%): 50")
 		self.pulse_mod_rise_time_slider = createHorizontalSlider(0, 99, 50, self.setModRiseTime)
 
 		self.pulse_mod_layout.addWidget(self.pulse_mod)
@@ -161,18 +184,18 @@ class MainWindow(QMainWindow):
 		self.sweep_layout.setContentsMargins(0, 0, 0, 0)
 		self.sweep_layout.setSpacing(5)
 
-		self.sweep = createButton("Sweeping Frequency", False, self.enablePulseModulation)
+		self.sweep = createButton("Sweep Frequency", False, self.enablePulseModulation)
 
-		self.sweep_min_freq_label = createLabel("Minimum Frequency")
+		self.sweep_min_freq_label = createLabel("Minimum Frequency: 500")
 		self.sweep_min_freq_slider = createHorizontalSlider(0, 999, 500, self.setMinSweepFreq)
 
 
 		#Used for setting Wave Frequency
-		self.sweep_max_freq_label = createLabel("Maximum Frequency")
+		self.sweep_max_freq_label = createLabel("Maximum Frequency: 500")
 		self.sweep_max_freq_slider = createHorizontalSlider(0, 999, 500, self.setMaxSweepFreq)
 
 		#Used for setting Wave Symmetry
-		self.sweep_time_label = createLabel("Time to Complete Sweep")
+		self.sweep_time_label = createLabel("Sweep Time (s): 50")
 		self.sweep_time_slider = createHorizontalSlider(0, 99, 50, self.setSweepTime)
 
 		self.sweep_layout.addWidget(self.sweep)
@@ -187,21 +210,21 @@ class MainWindow(QMainWindow):
 		
 		##############################################################
 
-		#Make all the widgets for jumping the waveforms
+		#Make all the widgets for random jumping the waveforms
 		self.wave_jumping_layout = QVBoxLayout()
 		self.wave_jumping_layout.setContentsMargins(0, 0, 0, 0)
 		self.wave_jumping_layout.setSpacing(5)
 
-		self.freq_jumping = createButton("Frequency Jumping", False, self.enableFreqJumping)
-		self.freq_jump_cycle_label = createLabel("Cycles Before Frequency Jump", alignment = 0)
+		self.freq_jumping = createButton("Random Frequency Jumping", False, self.enableFreqJumping)
+		self.freq_jump_cycle_label = createLabel("Cycles Before Frequency Jump: 50", alignment = 0)
 		self.freq_jump_cycle_slider = createHorizontalSlider(0, 99, 50, self.setFreqJumpCycles)
-		self.freq_jump_diff_label = createLabel("Maximum Frequency Difference", alignment = 0)
+		self.freq_jump_diff_label = createLabel("Maximum Frequency Difference: 500", alignment = 0)
 		self.freq_jump_difference = createHorizontalSlider(0, 999, 500, self.setMaxFreqJump)
 		
-		self.amp_jumping = createButton("Amplitude Jumping", False, self.enableAmpJumping)
-		self.amp_jump_cycle_label = createLabel("Cycles Before Amplitude Jump", alignment = 0)
+		self.amp_jumping = createButton("Random Amplitude Jumping", False, self.enableAmpJumping)
+		self.amp_jump_cycle_label = createLabel("Cycles Before Amplitude Jump: 50", alignment = 0)
 		self.amp_jump_cycle_slider = createHorizontalSlider(0, 99, 50, self.setAmpJumpCycles)
-		self.amp_jump_diff_label = createLabel("Maximum Amplitude Difference", alignment =  0)
+		self.amp_jump_diff_label = createLabel("Maximum Amplitude Difference: 0.50", alignment =  0)
 		self.amp_jump_difference = createHorizontalSlider(0, 99, 50, self.setMaxAmpJump)
 
 		#Add all the waveform jumping widgets
@@ -220,12 +243,40 @@ class MainWindow(QMainWindow):
 		
 		##############################################################
 
+		#Make all the widgets for weighted jumping of the waveforms
+		self.weighted_freq_jump_layout = QVBoxLayout()
+		self.weighted_freq_jump_layout.setContentsMargins(0, 0, 0, 0)
+		self.weighted_freq_jump_layout.setSpacing(5)
+
+		self.weighted_freq_jump_button = createButton("Weighted Frequency Jumping", False, self.enableWeightedFreq)
+		self.weighted_freq_box = QGroupBox("Weighted Frequency Range")
+		self.weighted_freq_form_layout = QFormLayout()
+		self.weighted_freq_form_layout.addRow(QLabel("Lower Frequency Bound:"), QLineEdit())
+		self.weighted_freq_form_layout.addRow(QLabel("Upper Frequency Bound:"), QLineEdit())
+		self.weighted_freq_form_layout.addRow(QLabel("Weight (integer):"), QLineEdit())
+		self.weighted_freq_box.setLayout(self.weighted_freq_form_layout)
+		self.single_form = QFormLayout()
+		self.single_form.addRow(QLabel("Cycles before Frequency Jump: "), QLineEdit())
+		self.weighted_freq_range_button = createButton("Add Weighted Frequency Range", False, self.addWeightedFreqRange)
+		
+		#Add all the waveform jumping widgets
+		self.weighted_freq_jump_layout.addWidget(self.weighted_freq_jump_button)
+		self.weighted_freq_jump_layout.addWidget(self.weighted_freq_box)
+		self.weighted_freq_jump_layout.addLayout(self.single_form)
+		self.weighted_freq_jump_layout.addWidget(self.weighted_freq_range_button)
+
+
+		##############################################################
+		
+		##############################################################
+
 		#Add all the different layouts to the waveform layout
 		self.waveform_layout.addLayout(self.wave_type_layout, 1)
 		self.waveform_layout.addLayout(self.wave_measurement_layout, 2)
 		self.waveform_layout.addLayout(self.pulse_mod_layout, 2)
 		self.waveform_layout.addLayout(self.sweep_layout, 2)
 		self.waveform_layout.addLayout(self.wave_jumping_layout, 2)
+		self.waveform_layout.addLayout(self.weighted_freq_jump_layout, 2)
 
 		##############################################################
 		
@@ -310,9 +361,9 @@ class MainWindow(QMainWindow):
 			out += "1"
 		else:
 			out += "0"
-		out += str(self.wave_frequency_slider.value).zfill(4)
-		out += self.wave_amplitude_label[4]
-		out += "0." + self.wave_symmetry_label[-2]
+		out += str(self.wave_frequency_slider.value()).zfill(3)
+		out += "0." + str(self.wave_amplitude_slider.value()).zfill(2)
+		out += "0." + str(self.wave_symmetry_slider.value()).zfill(2)
 
 		#Append the Pulse Modulation Values
 		out += 'p'
@@ -321,27 +372,59 @@ class MainWindow(QMainWindow):
 		else:
 			out += "0"
 		if (self.sinusoid_modulation.isChecked()):
-			out += 2
+			out += "2"
 		else:
-			out += 1
-		out += self.pulse_mod_duty_cycle_label
-
-		#out +=
+			out += "1"
+		out += "0." + str(self.pulse_mod_duty_cycle_slider.value()).zfill(2)
+		out += str(self.pulse_mod_frequency_slider.value()).zfill(2)
+		out += str(self.pulse_mod_rise_time_slider.value()).zfill(2)
 
 		#Append the Sweep Values
 		out += 's'
+		if (self.sweep.isChecked()):
+			out += "1"
+		else:
+			out += "0"
+		if (self.sweep_min_freq_slider.value() <= self.sweep_max_freq_slider.value()):
+			out += str(self.sweep_min_freq_slider.value()).zfill(3)
+			out += str(self.sweep_max_freq_slider.value()).zfill(3)
+		else:
+			out += str(self.sweep_min_freq_slider.value()).zfill(3)
+			out += str(self.sweep_min_freq_slider.value()).zfill(3)
+		out += str(self.sweep_time_slider.value()).zfill(2)
 
 		#Append the Frequency Jumping Values
 		out += 'f'
+		if (self.freq_jumping.isChecked()):
+			out += "1"
+		else:
+			out += "0"
+		out += str(self.freq_jump_cycle_slider.value()).zfill(2)
+		out += str(self.freq_jump_difference.value()).zfill(3)
 
 		#Append the Amplitude Jumping Values
 		out += 'a'
+		if (self.amp_jumping.isChecked()):
+			out += "1"
+		else:
+			out += "0"
+		out += str(self.amp_jump_cycle_slider.value()).zfill(2)
+		out += "0." + str(self.amp_jump_difference.value()).zfill(2)
 
+		#Append the Weighted Frequency Jumping Values
+		out += 'w'
+		if (not self.weighted_freq_jump_button.isChecked()):
+			out += "0"
+		else:
+			out += str(self.num_of_ranges)
+		out += self.single_form.itemAt(0,1).widget().text().zfill(2)
+		for key, value in self.weighted_freq_jump_ranges.items():
+			out += str(key[0]).zfill(3) + str(key[1]).zfill(3) + str(value)
+		
 		print (out)
 
-		ser.write(out.encode())
-		ser.flush()
-		
+		#ser.write(out.encode())
+		#ser.flush()
 
 	def keepOn(self):
 		if (not self.wave_measurement_label.isChecked()):
@@ -359,7 +442,7 @@ class MainWindow(QMainWindow):
 	def setFrequency(self, value):
 		self.wave_frequency_label.setText("Frequency: " + str(value))
 	def setSymmetry(self, value):
-		self.wave_symmetry_label.setText("Symmetry: " + str(value) + "%")
+		self.wave_symmetry_label.setText("Symmetry (%): " + str(value))
 
 	def enableSine(self):
 		if (not self.sinusoid_wave.isChecked()):
@@ -389,11 +472,11 @@ class MainWindow(QMainWindow):
 			print("Pulse Modulation Disabled")
 		
 	def setModDutyCycle(self, value):
-		self.pulse_mod_duty_cycle_label.setText("Duty Cycle: "+ str(value) + "%")
+		self.pulse_mod_duty_cycle_label.setText("Duty Cycle (%): "+ str(value))
 	def setModFrequency(self, value):
 		self.pulse_mod_frequency_label.setText("Frequency: " + str(value))
 	def setModRiseTime(self, value):
-		self.pulse_mod_rise_time_label.setText("Rise Time: "  + str(value) + "%")
+		self.pulse_mod_rise_time_label.setText("Rise Time (%): "  + str(value))
 
 	def setSinsuoidMod(self):
 		if (not self.sinusoid_modulation.isChecked()):
@@ -425,7 +508,7 @@ class MainWindow(QMainWindow):
 	def setMaxSweepFreq(self, value):
 		self.sweep_max_freq_label.setText("Maximum Frequency: " + str(value))
 	def setSweepTime(self, value):
-		self.sweep_time_label.setText("Sweep Time: " + str(value) + " s")
+		self.sweep_time_label.setText("Sweep Time (s): " + str(value))
 
 
 	##############################################################
@@ -438,10 +521,7 @@ class MainWindow(QMainWindow):
 	def setAmpJumpCycles(self, value):
 		self.amp_jump_cycle_label.setText("Cycles Before Amplitude Jump: " + str(value))
 	def setMaxAmpJump(self, value):
-		if (value > 9):
-			self.amp_jump_diff_label.setText("Maximum Amplitude Difference: " + str(value)[0] + "." + str(value)[1])
-		else:
-			self.amp_jump_diff_label.setText("Maximum Amplitude Difference: 0." + str(value))
+		self.amp_jump_diff_label.setText("Maximum Amplitude Difference: 0." + str(value).zfill(2))
 	def enableFreqJumping(self):
 		if(self.freq_jumping.isChecked()):
 			print ("Frequency Jumping Enabled")
@@ -455,6 +535,25 @@ class MainWindow(QMainWindow):
 			print("Amplitude Jumping Disabled")
 		
 
+	def enableWeightedFreq(self):
+		if(self.weighted_freq_jump_button.isChecked()):
+			print("Weighted Frequency Jumping Enabled")
+		else:
+			print("Weighted Frequency Jumping Disabled")
+
+	def addWeightedFreqRange(self):
+		self.num_of_ranges += 1;
+		self.weighted_freq_range_button.toggle()
+		bounds = (self.weighted_freq_form_layout.itemAt(0,1).widget().text().zfill(3), self.weighted_freq_form_layout.itemAt(1,1).widget().text().zfill(3))
+		self.weighted_freq_jump_ranges[bounds] = self.weighted_freq_form_layout.itemAt(2,1).widget().text()
+		
+		self.weighted_freq_form_layout.itemAt(0,1).widget().setText("")
+		self.weighted_freq_form_layout.itemAt(1,1).widget().setText("")
+		self.weighted_freq_form_layout.itemAt(2,1).widget().setText("")
+
+		print("Weighted Frequency Range Added")
+		print(self.weighted_freq_jump_ranges)
+		print("Number of Ranges: " + str(self.num_of_ranges))
 	def open_video(self):
 		fileName, _ = QFileDialog.getOpenFileName(self, "Selecciona los mediose",
 				".", "Video Files (*.mp4 *.flv *.ts *.mts *.avi)")
