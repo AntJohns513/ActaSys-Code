@@ -87,10 +87,6 @@ if __name__ == '__main__':
 
 		if cv2.waitKey(1) & 0xFF == ord('q'):
 			break
-
-
-	print (obscuration_percents)
-	print(total_obscuration)
 	# When everything done, release the vid_streamture
 	vid_stream.release()
 	cv2.destroyAllWindows()
