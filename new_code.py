@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 import cv2
 import time
@@ -75,9 +74,6 @@ if __name__ == '__main__':
 	column_names = []
 	for i in range(num_regions):
 		column_names.append("Region " + str(i))
-
-	total_obscuration = []
-	obscuration_percents = pd.DataFrame(columns = column_names) 
 	
 	while (True):
 		ret, current_image = vid_stream.read()
@@ -85,34 +81,9 @@ if __name__ == '__main__':
 		if (not ret):
 			print ("Video Stream Failed")
 			exit()
-	
-		#Converts current image into gray scale
-		current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2GRAY)
+
 
 		cv2.imshow("Live Feed", mask)
-
-		#Creates the subtracted image between base and current then applies the mask
-		grayscale_difference = cv2.absdiff(base_image, current_image)
-		grayscale_difference = cv2.add(grayscale_difference, mask)
-
-		#Converts the subtracted image into a purely binary black/white image
-		ret, binary_difference = cv2.threshold(grayscale_difference,15,255,cv2.THRESH_BINARY); 
-
-		num_white_pixels = cv2.countNonZero(binary_difference)
-
-		obscuration_level = (num_white_pixels - mask_white_pixels)/lidar_area * 100
-
-		total_obscuration.append(obscuration_level)
-
-		new_row = {}
-		for i in range(num_regions):
-			binary_region = binary_difference[i*region_width:(i+1)*region_width, :]
-			num_white_pixels = cv2.countNonZero(binary_difference)
-			obscuration_level = (num_white_pixels - mask_white_pixels)/lidar_area * 100
-			new_row["Region " + str(i)] = obscuration_level
-
-		obscuration_percents = obscuration_percents.append(new_row, ignore_index = True)
-		
 
 		if cv2.waitKey(1) & 0xFF == ord('q'):
 			break
