@@ -40,7 +40,7 @@ def createMask(base, ht_offset, screen_ht):
 	img = cv2.fillPoly(img, [bound_list], 0)
 	
 	#Fill in above the mask with pure white
-	bound_list = np.array([[0, 0], [0, ht_offset],
+	'''bound_list = np.array([[0, 0], [0, ht_offset],
 						   [img.shape[1], ht_offset],
 						   [img.shape[1], 0]],  np.int32)
 	bound_list = bound_list.reshape((-1, 1, 2))
@@ -54,7 +54,7 @@ def createMask(base, ht_offset, screen_ht):
 						   [0, img.shape[0]]], np.int32)
 	bound_list = bound_list.reshape((-1, 1, 2))
 	
-	img = cv2.fillPoly(img, [bound_list], 255)
+	img = cv2.fillPoly(img, [bound_list], 255)'''
 
 	return img
 
@@ -89,7 +89,7 @@ if __name__ == '__main__':
 		#Converts current image into gray scale
 		current_image = cv2.cvtColor(current_image, cv2.COLOR_BGR2GRAY)
 
-		cv2.imshow("Live Feed", current_image)
+		cv2.imshow("Live Feed", mask)
 
 		#Creates the subtracted image between base and current then applies the mask
 		grayscale_difference = cv2.absdiff(base_image, current_image)
